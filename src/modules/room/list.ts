@@ -17,11 +17,19 @@ export const listRoomsBasic = async () => {
   return rooms;
 };
 
+type AvailableTimes = {
+  // key: roomId
+  [key: number]: {
+    // key: dayofmonth, value: hours available for the day
+    [key: number]: ValidHour[];
+  };
+};
+
 export const listAvailable = async (input: {
   roomIds: number[];
   frameFrom: number;
   frameTo: number;
-}) => {
+}): Promise<AvailableTimes> => {
   if (!input.roomIds || !input.roomIds.length) {
     throw new Error('No room IDs provided');
   }
@@ -75,31 +83,28 @@ export const listAvailable = async (input: {
   const frameFromDay = new Date(frameFrom).getDate();
   const frameToDay = new Date(frameTo).getDate();
 
+  const availableTimes: {
+    [key: number]: {
+      [key: number]: ValidHour[];
+    };
+  } = {};
+
   if (reservedTimes.length === 0) {
-    console.log('No reserved times');
-    const availableTimes: { roomId: number; [key: number]: ValidHour[] }[] =
-      roomIds.map((roomId) => {
-        const roomAvailableTimes: {
-          roomId: number;
-          [key: number]: ValidHour[];
-        } = { roomId };
-        for (let day = frameFromDay; day <= frameToDay; day++) {
-          roomAvailableTimes[day] = [...workingHours];
+    //no reserved times then just fill in all working hours
+    for (const roomId of roomIds) {
+      for (let day = frameFromDay; day <= frameToDay; day++) {
+        if (!availableTimes[roomId]) {
+          availableTimes[roomId] = {};
         }
-        return roomAvailableTimes;
-      });
+        availableTimes[roomId][day] = [...workingHours];
+      }
+    }
     return availableTimes;
   }
 
   const bookedSlots = await buildTimeSlots(reservedTimes);
 
-  const availableTimes: { roomId: number; [key: number]: ValidHour[] }[] = [];
-
   for (const roomId of roomIds) {
-    const roomAvailableTimes: { roomId: number; [key: number]: ValidHour[] } = {
-      roomId,
-    };
-
     for (let day = frameFromDay; day <= frameToDay; day++) {
       const availableHours = [...workingHours];
 
@@ -113,11 +118,12 @@ export const listAvailable = async (input: {
       }
 
       if (availableHours.length > 0) {
-        roomAvailableTimes[day] = availableHours;
+        if (!availableTimes[roomId]) {
+          availableTimes[roomId] = {};
+        }
+        availableTimes[roomId][day] = availableHours;
       }
     }
-
-    availableTimes.push(roomAvailableTimes);
   }
 
   return availableTimes;

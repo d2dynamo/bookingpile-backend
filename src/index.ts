@@ -11,38 +11,54 @@ async function cHello(req: Request) {
   });
 }
 
+function setCorsHeaders(res: Response) {
+  res.headers.set('Access-Control-Allow-Origin', '*');
+  res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+}
+
 const server = Bun.serve({
   async fetch(request) {
-    try {
-      const url = new URL(request.url);
+    const url = new URL(request.url);
 
+    let response: Response;
+
+    try {
       switch (url.pathname) {
         case '/hello':
-          return await cHello(request);
+          response = await cHello(request);
+          break;
         case '/rooms/list':
-          return await cListRooms(request);
+          response = await cListRooms(request);
+          break;
         case '/rooms/available':
-          return await cListAvailableTimes(request);
+          response = await cListAvailableTimes(request);
+          break;
         case '/booking/create':
-          return await cCreateBooking(request);
+          response = await cCreateBooking(request);
+          break;
         case '/booking/status':
-          return await cUpdateStatus(request);
+          response = await cUpdateStatus(request);
+          break;
         default:
-          return new Response('Not Found', { status: 404 });
+          response = new Response('Not Found', { status: 404 });
       }
     } catch (e: any) {
       if (e instanceof UserError) {
-        return new Response(e.message, { status: e.code || 400 });
-      }
-      if (
+        response = new Response(e.message, { status: e.code || 400 });
+      } else if (
         e instanceof SyntaxError &&
         e.message === 'Unexpected end of JSON input'
       ) {
-        return new Response('malformed body in request', { status: 400 });
+        response = new Response('malformed body in request', { status: 400 });
+      } else {
+        console.error(e);
+        response = new Response('internal server error', { status: 500 });
       }
-      console.error(e);
-      return new Response('internal server error', { status: 500 });
     }
+
+    setCorsHeaders(response);
+    return response;
   },
 });
 
