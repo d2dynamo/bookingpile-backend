@@ -1,4 +1,5 @@
 import { createBooking } from './create';
-import { changeStatus } from './update';
+import { updateBooking } from './update';
+import { getBooking } from './get';
 
-export { createBooking, changeStatus };
+export { createBooking, updateBooking, getBooking };

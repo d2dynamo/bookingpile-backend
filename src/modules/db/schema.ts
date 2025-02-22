@@ -27,7 +27,7 @@ export const booking = sqliteTable('booking', {
   statusId: integer('status_id')
     .notNull()
     .references(() => bookingStatus.id),
-  reservationName: text('reservation_name').notNull(),
+  reservationName: text('reservation_name'),
   start: integer('start')
     .notNull()
     .default(sql`(unixepoch())`),

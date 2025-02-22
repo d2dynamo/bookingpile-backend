@@ -1,19 +1,16 @@
-import { changeStatus, createBooking } from '../modules/booking';
+import { createBooking } from '../modules/booking';
 import type { BookingStatus } from '../modules/booking/types';
+import { updateBooking, getBooking } from '../modules/booking';
 
 export async function cCreateBooking(req: Request) {
   try {
-    const { roomId, reservationName, start } = await req.json();
+    const { roomId, start } = await req.json();
 
-    if (!roomId || isNaN(roomId)) {
+    if (!roomId || isNaN(Number(roomId))) {
       return new Response('Invalid room ID', { status: 400 });
     }
 
-    if (!reservationName || typeof reservationName !== 'string') {
-      return new Response('Invalid reservation name', { status: 400 });
-    }
-
-    if (!start || isNaN(start)) {
+    if (!start || isNaN(Number(start))) {
       return new Response('Invalid from date', { status: 400 });
     }
 
@@ -22,9 +19,8 @@ export async function cCreateBooking(req: Request) {
     // }
 
     const bookingId = await createBooking({
-      roomId,
-      reservationName,
-      start,
+      roomId: Number(roomId),
+      start: Number(start),
       //end,
     });
 
@@ -43,22 +39,52 @@ const isBookingStatus = (status: string): status is BookingStatus => {
   return ['processing', 'reserved', 'cancelled', 'confirmed'].includes(status);
 };
 
-export async function cUpdateStatus(req: Request) {
+export async function cUpdateBooking(req: Request) {
   try {
-    const { bookingId, status } = await req.json();
+    const { bookingId, status, reservationName } = await req.json();
 
-    if (!bookingId || isNaN(bookingId)) {
+    if (!bookingId || isNaN(Number(bookingId))) {
       return new Response('Invalid booking ID', { status: 400 });
     }
 
-    if (!status || typeof status !== 'string' || !isBookingStatus(status)) {
+    if (status && (typeof status !== 'string' || !isBookingStatus(status))) {
       return new Response('Invalid status', { status: 400 });
     }
 
-    await changeStatus({ bookingId, status });
+    if (reservationName && typeof reservationName !== 'string') {
+      return new Response('Invalid reservation name', { status: 400 });
+    }
+
+    await updateBooking({
+      bookingId: Number(bookingId),
+      status,
+      reservationName,
+    });
 
     return new Response('success', {
       status: 200,
+    });
+  } catch (e) {
+    throw e;
+  }
+}
+
+export async function cGetBooking(req: Request) {
+  try {
+    const { id } = req.params;
+    const bId = Number(id);
+
+    if (!bId || isNaN(bId)) {
+      return new Response('Invalid booking ID', { status: 400 });
+    }
+
+    const booking = await getBooking(bId);
+
+    return new Response(JSON.stringify(booking), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   } catch (e) {
     throw e;

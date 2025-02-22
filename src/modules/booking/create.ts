@@ -5,11 +5,10 @@ import type { BookingStatus } from './types';
 
 export const createBooking = async (input: {
   roomId: number;
-  reservationName: string;
   start: number; // unix seconds
   //end: number; // unix seconds
 }) => {
-  const { roomId, reservationName, start } = input;
+  const { roomId, start } = input;
 
   const normStart = new Date(start * 1000).setMinutes(0, 0, 0);
   const normEnd = new Date(start * 1000).setMinutes(59, 59, 0);
@@ -61,7 +60,6 @@ export const createBooking = async (input: {
       .insert(schema.booking)
       .values({
         statusId: insertedStatusId,
-        reservationName: reservationName,
         start: normStart,
         end: normEnd,
       })
