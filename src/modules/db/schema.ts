@@ -12,28 +12,15 @@ export const rooms = sqliteTable('rooms', {
   capacity: integer('capacity').notNull(),
 });
 
-export const bookingStatus = sqliteTable('booking_status', {
-  id: integer('id').primaryKey(),
-  type: text('type')
-    .notNull()
-    .$type<'processing' | 'reserved' | 'cancelled' | 'confirmed'>(),
-  updatedAt: integer('updated_at')
-    .notNull()
-    .default(sql`(unixepoch())`),
-});
-
 export const booking = sqliteTable('booking', {
   id: integer('id').primaryKey(),
-  statusId: integer('status_id')
+  status: text('status')
     .notNull()
-    .references(() => bookingStatus.id),
+    .$type<'reserved' | 'cancelled' | 'confirmed'>(),
   reservationName: text('reservation_name'),
-  start: integer('start')
-    .notNull()
-    .default(sql`(unixepoch())`),
+  start: integer('start').notNull(),
   end: integer('end') // not strictly needed now but here for future development of timeslot logic.
-    .notNull()
-    .default(sql`(unixepoch())`),
+    .notNull(),
   createdAt: integer('created_at')
     .notNull()
     .default(sql`(unixepoch())`),

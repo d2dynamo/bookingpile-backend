@@ -9,14 +9,10 @@ export const getBooking = async (bookingId: number) => {
       roomId: schema.roomBookings.roomId,
       start: schema.booking.start,
       end: schema.booking.end,
-      status: schema.bookingStatus.type,
+      status: schema.booking.status,
       reservationName: schema.booking.reservationName,
     })
     .from(schema.booking)
-    .innerJoin(
-      schema.bookingStatus,
-      eq(schema.booking.statusId, schema.bookingStatus.id)
-    )
     .innerJoin(
       schema.roomBookings,
       eq(schema.roomBookings.bookingId, schema.booking.id)

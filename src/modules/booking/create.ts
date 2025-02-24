@@ -1,7 +1,8 @@
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and, gt, ne, inArray } from 'drizzle-orm';
 import db, { schema } from '../db';
 import { UserError } from '../../util';
 import type { BookingStatus } from './types';
+import { checkTimeSlotAvailability } from './util';
 
 export const createBooking = async (input: {
   roomId: number;
@@ -15,51 +16,40 @@ export const createBooking = async (input: {
 
   const timeReserved = await db
     .select({
-      id: schema.roomBookings.roomId,
+      bookingId: schema.booking.id,
+      roomId: schema.roomBookings.roomId,
+      status: schema.booking.status,
+      createdAt: schema.booking.createdAt,
     })
     .from(schema.roomBookings)
     .innerJoin(
       schema.booking,
       eq(schema.roomBookings.bookingId, schema.booking.id)
     )
-    .innerJoin(
-      schema.bookingStatus,
-      eq(schema.booking.statusId, schema.bookingStatus.id)
-    )
     .where(
       and(
         eq(schema.roomBookings.roomId, roomId),
         eq(schema.booking.start, normStart),
         eq(schema.booking.end, normEnd),
-        or(
-          eq(schema.bookingStatus.type, 'reserved'),
-          eq(schema.bookingStatus.type, 'confirmed')
-        )
+        ne(schema.booking.status, 'cancelled')
       )
     );
 
-  if (timeReserved.length > 0) {
+  const availability = await checkTimeSlotAvailability(timeReserved);
+
+  console.log('availability', availability);
+
+  if (availability !== true) {
     throw new UserError('Time is reserved by an ongoing booking.', 401);
   }
 
-  const status = 'processing' as BookingStatus;
+  const status = 'reserved' as BookingStatus;
 
   return await db.transaction(async (trx) => {
-    const bookingStatus = await trx
-      .insert(schema.bookingStatus)
-      .values({ type: status })
-      .returning({ insertedId: schema.bookingStatus.id });
-
-    const insertedStatusId = bookingStatus[0].insertedId;
-
-    if (!insertedStatusId) {
-      throw new Error('Failed to create a booking status');
-    }
-
     const booking = await trx
       .insert(schema.booking)
       .values({
-        statusId: insertedStatusId,
+        status,
         start: normStart,
         end: normEnd,
       })

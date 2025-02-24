@@ -38,20 +38,23 @@ export async function cListAvailableTimes(req: Request) {
     }
     const now = new Date();
 
-    let frameFrom = Math.floor(new Date().setHours(7, 0, 0, 0) / 1000);
-    let frameTo = Math.floor(
-      new Date(now.setDate(now.getDate() + 2)).setHours(17, 0, 0, 0) / 1000
+    let frameFrom = new Date().setHours(7, 0, 0, 0);
+    let frameTo = new Date(now.setDate(now.getDate() + 2)).setHours(
+      17,
+      0,
+      0,
+      0
     );
 
     if (from) {
-      if (isNaN(from) || from.toString().length !== 10) {
+      if (isNaN(from)) {
         return new Response('Invalid from date', { status: 400 });
       }
       frameFrom = from;
     }
 
     if (to) {
-      if (isNaN(to) || to.toString().length !== 10) {
+      if (isNaN(to)) {
         return new Response('Invalid to date', { status: 400 });
       }
       frameTo = to;

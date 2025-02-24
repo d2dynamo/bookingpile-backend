@@ -36,7 +36,7 @@ export async function cCreateBooking(req: Request) {
 }
 
 const isBookingStatus = (status: string): status is BookingStatus => {
-  return ['processing', 'reserved', 'cancelled', 'confirmed'].includes(status);
+  return ['reserved', 'cancelled', 'confirmed'].includes(status);
 };
 
 export async function cUpdateBooking(req: Request) {

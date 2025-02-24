@@ -17,27 +17,18 @@ export const updateBooking = async (input: {
       set.reservationName = input.reservationName;
     }
 
+    if (input.status) {
+      set.status = input.status;
+    }
+
     const booking = await trx
       .update(schema.booking)
       .set(set)
       .where(eq(schema.booking.id, bookingId))
-      .returning({ id: schema.booking.id, statusId: schema.booking.statusId });
+      .returning({ id: schema.booking.id });
 
     if (!booking || !booking.length) {
       throw new UserError('Booking not found', 404);
-    }
-
-    if (input.status) {
-      const statusId = booking[0].statusId;
-
-      if (!statusId) {
-        throw new UserError('Booking status not found', 404);
-      }
-
-      await trx
-        .update(schema.bookingStatus)
-        .set({ type: input.status })
-        .where(eq(schema.bookingStatus.id, statusId));
     }
 
     return true;

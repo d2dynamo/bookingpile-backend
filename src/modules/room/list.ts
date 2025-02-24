@@ -35,8 +35,8 @@ export const listAvailable = async (input: {
   }
 
   const roomIds = input.roomIds;
-  const frameFrom = input.frameFrom * 1000;
-  const frameTo = input.frameTo * 1000;
+  const frameFrom = input.frameFrom;
+  const frameTo = input.frameTo;
 
   const reservedTimes = await db
     .select({
@@ -49,10 +49,6 @@ export const listAvailable = async (input: {
     .innerJoin(
       schema.booking,
       eq(schema.roomBookings.bookingId, schema.booking.id)
-    )
-    .innerJoin(
-      schema.bookingStatus,
-      eq(schema.booking.statusId, schema.bookingStatus.id)
     )
     .where(
       and(
@@ -72,8 +68,8 @@ export const listAvailable = async (input: {
           )
         ),
         or(
-          eq(schema.bookingStatus.type, 'reserved'),
-          eq(schema.bookingStatus.type, 'confirmed')
+          eq(schema.booking.status, 'reserved'),
+          eq(schema.booking.status, 'confirmed')
         )
       )
     );
