@@ -1,4 +1,5 @@
 import { listAvailable, listRoomsBasic } from '../modules/room';
+import { unixSec } from '../util';
 
 export async function cListRooms(req: Request) {
   try {
@@ -38,26 +39,23 @@ export async function cListAvailableTimes(req: Request) {
     }
     const now = new Date();
 
-    let frameFrom = new Date().setHours(7, 0, 0, 0);
-    let frameTo = new Date(now.setDate(now.getDate() + 2)).setHours(
-      17,
-      0,
-      0,
-      0
+    let frameFrom = unixSec(new Date().setHours(7, 0, 0, 0));
+    let frameTo = unixSec(
+      new Date(now.setDate(now.getDate() + 2)).setHours(17, 0, 0, 0)
     );
 
     if (from) {
       if (isNaN(from)) {
         return new Response('Invalid from date', { status: 400 });
       }
-      frameFrom = from;
+      frameFrom = unixSec(from);
     }
 
     if (to) {
       if (isNaN(to)) {
         return new Response('Invalid to date', { status: 400 });
       }
-      frameTo = to;
+      frameTo = unixSec(to);
     }
 
     const availableTimes = await listAvailable({ roomIds, frameFrom, frameTo });

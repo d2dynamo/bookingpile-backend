@@ -6,6 +6,8 @@ import {
   primaryKey,
 } from 'drizzle-orm/sqlite-core';
 
+/** unixepoch() gives seconds not milis. */
+
 export const rooms = sqliteTable('rooms', {
   id: integer('id').primaryKey(),
   name: text('name').notNull(),

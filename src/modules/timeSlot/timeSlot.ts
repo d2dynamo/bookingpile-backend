@@ -1,9 +1,10 @@
+import { unixSec } from '../../util';
 import type { DayOfMonth, Month, ValidHour } from './types';
 
 class TimeSlot {
   readonly roomId: number;
-  startEpoch: number;
-  endEpoch: number;
+  startEpoch: number; // unix seconds
+  endEpoch: number; // unix seconds
 
   // Currently the constructor will only take startEpoch and force the endEpoch to conform to 1hr slot architecture based on hour of startEpoch.
   // This can ofcourse be changed in future.
@@ -13,8 +14,8 @@ class TimeSlot {
     //endEpoch: number = new Date().getTime()
   ) {
     this.roomId = roomId;
-    this.startEpoch = new Date(startEpoch).setMinutes(0, 0, 0) / 1000;
-    this.endEpoch = new Date(startEpoch).setMinutes(59, 59, 0) / 1000;
+    this.startEpoch = unixSec(new Date(startEpoch * 1000).setMinutes(0, 0, 0));
+    this.endEpoch = unixSec(new Date(startEpoch * 1000).setMinutes(59, 59, 0));
   }
 
   getDayOfMonth(): DayOfMonth {
@@ -43,15 +44,15 @@ class TimeSlot {
     }
 
     date.setDate(day);
-    this.startEpoch = new Date(date).setMinutes(0, 0, 0) / 1000;
-    this.endEpoch = new Date(date).setMinutes(59, 59, 0) / 1000;
+    this.startEpoch = unixSec(new Date(date).setMinutes(0, 0, 0));
+    this.endEpoch = unixSec(new Date(date).setMinutes(59, 59, 0));
   }
 
   setHour(hour: ValidHour): void {
     const date = new Date(this.startEpoch * 1000);
     date.setHours(hour, 0, 0, 0);
-    this.startEpoch = new Date(date).setMinutes(0, 0, 0) / 1000;
-    this.endEpoch = new Date(date).setMinutes(59, 59, 0) / 1000;
+    this.startEpoch = unixSec(new Date(date).setMinutes(0, 0, 0));
+    this.endEpoch = unixSec(new Date(date).setMinutes(59, 59, 0));
   }
 
   setMonth(month: Month): void {
@@ -69,8 +70,8 @@ class TimeSlot {
       endDate.setDate(maxDay);
     }
 
-    this.startEpoch = new Date(startDate).setMinutes(0, 0, 0) / 1000;
-    this.endEpoch = new Date(endDate).setMinutes(59, 59, 0) / 1000;
+    this.startEpoch = unixSec(new Date(startDate).setMinutes(0, 0, 0));
+    this.endEpoch = unixSec(new Date(endDate).setMinutes(59, 59, 0));
   }
 }
 

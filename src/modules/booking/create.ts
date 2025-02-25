@@ -1,6 +1,6 @@
-import { eq, and, gt, ne, inArray } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 import db, { schema } from '../db';
-import { UserError } from '../../util';
+import { unixSec, UserError } from '../../util';
 import type { BookingStatus } from './types';
 import { checkTimeSlotAvailability } from './util';
 
@@ -11,8 +11,8 @@ export const createBooking = async (input: {
 }) => {
   const { roomId, start } = input;
 
-  const normStart = new Date(start * 1000).setMinutes(0, 0, 0);
-  const normEnd = new Date(start * 1000).setMinutes(59, 59, 0);
+  const normStart = unixSec(new Date(start * 1000).setMinutes(0, 0, 0));
+  const normEnd = unixSec(new Date(start * 1000).setMinutes(59, 59, 0));
 
   const timeReserved = await db
     .select({
@@ -36,8 +36,6 @@ export const createBooking = async (input: {
     );
 
   const availability = await checkTimeSlotAvailability(timeReserved);
-
-  console.log('availability', availability);
 
   if (availability !== true) {
     throw new UserError('Time is reserved by an ongoing booking.', 401);

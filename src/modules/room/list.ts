@@ -27,8 +27,8 @@ type AvailableTimes = {
 
 export const listAvailable = async (input: {
   roomIds: number[];
-  frameFrom: number;
-  frameTo: number;
+  frameFrom: number; // unix seconds
+  frameTo: number; // unix seconds
 }): Promise<AvailableTimes> => {
   if (!input.roomIds || !input.roomIds.length) {
     throw new Error('No room IDs provided');
@@ -76,8 +76,8 @@ export const listAvailable = async (input: {
 
   const workingHours: ValidHour[] = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
 
-  const frameFromDay = new Date(frameFrom).getDate();
-  const frameToDay = new Date(frameTo).getDate();
+  const frameFromDay = new Date(frameFrom * 1000).getDate();
+  const frameToDay = new Date(frameTo * 1000).getDate();
 
   const availableTimes: {
     [key: number]: {

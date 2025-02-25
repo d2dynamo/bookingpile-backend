@@ -1,3 +1,4 @@
 import { UserError } from './userError';
+import { unixSec } from './time';
 
-export { UserError };
+export { UserError, unixSec };

@@ -1,7 +1,7 @@
 import TimeSlot from './timeSlot';
 
 const bookingHourInRange = (epoch: number): boolean => {
-  const date = new Date(epoch);
+  const date = new Date(epoch * 1000);
   const hour = date.getHours();
   return hour >= 7 && hour <= 17;
 };

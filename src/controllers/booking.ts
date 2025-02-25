@@ -1,6 +1,7 @@
 import { createBooking } from '../modules/booking';
 import type { BookingStatus } from '../modules/booking/types';
 import { updateBooking, getBooking } from '../modules/booking';
+import { unixSec } from '../util';
 
 export async function cCreateBooking(req: Request) {
   try {
@@ -14,13 +15,13 @@ export async function cCreateBooking(req: Request) {
       return new Response('Invalid from date', { status: 400 });
     }
 
-    // if (!end || isNaN(end)) {
+    // if (!end || isNaN(Number(end))) {
     //   return new Response('Invalid to date', { status: 400 });
     // }
 
     const bookingId = await createBooking({
       roomId: Number(roomId),
-      start: Number(start),
+      start: unixSec(Number(start)),
       //end,
     });
 
