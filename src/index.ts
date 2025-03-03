@@ -15,10 +15,18 @@ async function cHello(req: Request) {
   });
 }
 
-function setCorsHeaders(res: Response) {
+function corsMiddleware(req: Request, res: Response) {
   res.headers.set('Access-Control-Allow-Origin', '*');
-  res.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  res.headers.set(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, OPTIONS'
+  );
+  res.headers.set(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization'
+  );
+
+  return null;
 }
 
 function matchPath(
@@ -55,16 +63,23 @@ const server = Bun.serve({
 
     try {
       const routes = [
-        { pattern: '/hello', handler: cHello },
-        { pattern: '/rooms/list', handler: cListRooms },
-        { pattern: '/rooms/available', handler: cListAvailableTimes },
-        { pattern: '/booking/get/:id', handler: cGetBooking },
-        { pattern: '/booking/create', handler: cCreateBooking },
-        { pattern: '/booking/update', handler: cUpdateBooking },
+        { method: 'GET', pattern: '/hello', handler: cHello },
+        { method: 'GET', pattern: '/rooms/list', handler: cListRooms },
+        {
+          method: 'GET',
+          pattern: '/rooms/available',
+          handler: cListAvailableTimes,
+        },
+        { method: 'GET', pattern: '/booking/get/:id', handler: cGetBooking },
+        { method: 'POST', pattern: '/booking/create', handler: cCreateBooking },
+        { method: 'POST', pattern: '/booking/update', handler: cUpdateBooking },
       ];
 
       let h: Handler | null = null;
       for (const route of routes) {
+        if (route.method !== request.method) {
+          continue;
+        }
         const params = matchPath(route.pattern, url.pathname);
         if (params !== null) {
           (request as any).params = params;
@@ -73,12 +88,11 @@ const server = Bun.serve({
         }
       }
 
-      if (!h) {
-        setCorsHeaders(response);
-        return response;
+      if (h) {
+        response = await h(request);
+      } else if (request.method === 'OPTIONS') {
+        response = new Response(null, { status: 204 });
       }
-
-      response = await h(request);
     } catch (e: any) {
       if (e instanceof UserError) {
         response = new Response(e.message, { status: e.code || 400 });
@@ -92,7 +106,9 @@ const server = Bun.serve({
         response = new Response('internal server error', { status: 500 });
       }
     } finally {
-      setCorsHeaders(response);
+      corsMiddleware(request, response);
+      console.log(`req: ${request.method} ${request.url}`);
+      console.log('res:', response);
       return response;
     }
   },

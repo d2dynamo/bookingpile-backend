@@ -1,6 +1,7 @@
-import { inArray } from 'drizzle-orm';
+import { inArray, and, eq, lte } from 'drizzle-orm';
 import db, { schema } from '../db';
 import type { RoomBookingTime } from './types';
+import { unixSec } from '../../util';
 
 /** cancels all old reservations
  *
@@ -38,4 +39,21 @@ export async function checkTimeSlotAvailability<T extends RoomBookingTime>(
     .where(inArray(schema.booking.id, oldBookingIds));
 
   return confirmed || reservedRecent || true;
+}
+
+export async function cleanupOldBookings<T extends RoomBookingTime>(
+  bookings: T[]
+): Promise<T[]> {
+  const fifteenMinutesAgo = unixSec(Date.now()) - 15 * 60;
+
+  const oldBookingIds = bookings
+    .filter((book) => book.createdAt < fifteenMinutesAgo)
+    .map((book) => book.bookingId);
+
+  await db
+    .update(schema.booking)
+    .set({ status: 'cancelled' })
+    .where(inArray(schema.booking.id, oldBookingIds));
+
+  return bookings.filter((b) => !oldBookingIds.includes(b.bookingId));
 }
