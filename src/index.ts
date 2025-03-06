@@ -107,8 +107,6 @@ const server = Bun.serve({
       }
     } finally {
       corsMiddleware(request, response);
-      console.log(`req: ${request.method} ${request.url}`);
-      console.log('res:', response);
       return response;
     }
   },

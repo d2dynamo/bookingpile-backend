@@ -2,8 +2,8 @@ import { eq, and, or, gte, lte, inArray } from 'drizzle-orm';
 
 import db, { schema } from '../db';
 import { buildTimeSlots } from '../timeSlot';
-import type { ValidHour } from '../timeSlot/types';
 import { cleanupOldBookings } from '../booking/util';
+import { unixSec } from '../../util/time';
 
 export const listRoomsBasic = async () => {
   const rooms = await db
@@ -45,13 +45,11 @@ const daysRange = (from: number, to: number) => {
   return { startDay, endDay, daysBetween };
 };
 
-type AvailableTimes = {
-  // key: roomId
-  [key: number]: {
-    // key: dayofmonth, value: hours available for the day
-    [key: number]: ValidHour[];
-  };
-};
+interface AvailableTimes {
+  // key: roomId. Value array of unix seconds timestamps denoted the start of the available time.
+  // Only works as long as timeslots are only 1 hour long.
+  [key: number]: Array<number>;
+}
 
 export const listAvailable = async (input: {
   roomIds: number[];
@@ -65,8 +63,6 @@ export const listAvailable = async (input: {
   const roomIds = input.roomIds;
   const frameFrom = input.frameFrom;
   const frameTo = input.frameTo;
-
-  console.log('input', roomIds, frameFrom, frameTo);
 
   const reservedTimes = await db
     .select({
@@ -108,77 +104,95 @@ export const listAvailable = async (input: {
 
   cleanupOldBookings(reservedTimes);
 
-  const workingHours: ValidHour[] = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-
-  const {
-    startDay: frameFromDay,
-    endDay: frameToDay,
-    daysBetween,
-  } = daysRange(frameFrom, frameTo);
-
-  console.log('daysRange', frameFromDay, frameToDay, daysBetween);
-
-  const availableTimes: {
-    [key: number]: {
-      [key: string]: ValidHour[];
-    };
-  } = {};
+  const availableTimes: AvailableTimes = {};
 
   if (reservedTimes.length === 0) {
     //no reserved times then just fill in all working hours
     for (const roomId of roomIds) {
       if (!availableTimes[roomId]) {
-        availableTimes[roomId] = {};
+        availableTimes[roomId] = [];
       }
 
       const fromDate = new Date(frameFrom * 1000);
+      const toDate = new Date(new Date(frameTo * 1000).setHours(18));
 
-      for (let i = 0; i < daysBetween; i++) {
-        const currentDate = new Date(fromDate);
-        currentDate.setDate(fromDate.getDate() + i);
-        const currentDay = currentDate.getDate();
-        const currentMonth = currentDate.getMonth() + 1;
-        const dateKey = `${currentMonth}/${currentDay}`;
+      const currentDate = new Date(
+        fromDate.getFullYear(),
+        fromDate.getMonth(),
+        fromDate.getDate(),
+        7,
+        0,
+        0,
+        0
+      );
+      let lg = 0;
 
-        availableTimes[roomId][dateKey] = [...workingHours];
+      while (currentDate.getTime() < toDate.getTime()) {
+        if (lg > 10000) {
+          console.error('loop guard. breaking.');
+          break;
+        }
+        lg++;
+
+        availableTimes[roomId].push(unixSec(currentDate));
+
+        const hour = currentDate.getHours();
+
+        if (hour < 17) {
+          currentDate.setHours(hour + 1);
+        } else {
+          currentDate.setDate(currentDate.getDate() + 1);
+          currentDate.setHours(7);
+        }
       }
     }
-    console.log('availableTimes', availableTimes);
     return availableTimes;
   }
 
   const bookedSlots = await buildTimeSlots(reservedTimes);
-  console.log('bookedSlots', bookedSlots);
 
   for (const roomId of roomIds) {
-    for (let i = 0; i < daysBetween; i++) {
-      const availableHours = [...workingHours];
+    const fromDate = new Date(frameFrom * 1000);
+    const toDate = new Date(new Date(frameTo * 1000).setHours(18));
 
-      const currentDate = new Date(frameFrom * 1000);
-      currentDate.setDate(frameFromDay + i);
-      const day = currentDate.getDate();
-      const month = currentDate.getMonth() + 1;
-      const dateKey = `${month}/${day}`;
+    const currentDate = new Date(
+      fromDate.getFullYear(),
+      fromDate.getMonth(),
+      fromDate.getDate(),
+      7,
+      0,
+      0,
+      0
+    );
 
+    while (currentDate.getTime() < toDate.getTime()) {
+      const hour = currentDate.getHours();
+      const currentTime = unixSec(currentDate.getTime());
+
+      let isAvailable = true;
       for (const slot of bookedSlots) {
-        if (slot.roomId === roomId && slot.getDayOfMonth() === day) {
-          const hourIndex = availableHours.indexOf(slot.getHour() as ValidHour);
-          if (hourIndex !== -1) {
-            availableHours.splice(hourIndex, 1);
-          }
+        if (slot.roomId === roomId && slot.startEpoch === currentTime) {
+          isAvailable = false;
+          break;
         }
       }
 
-      if (availableHours.length > 0) {
+      if (isAvailable) {
         if (!availableTimes[roomId]) {
-          availableTimes[roomId] = {};
+          availableTimes[roomId] = [];
         }
-        availableTimes[roomId][dateKey] = availableHours;
+
+        availableTimes[roomId].push(currentTime);
+      }
+
+      if (hour < 17) {
+        currentDate.setHours(hour + 1);
+      } else {
+        currentDate.setDate(currentDate.getDate() + 1);
+        currentDate.setHours(7);
       }
     }
   }
-
-  console.log('availableTimes', availableTimes);
 
   return availableTimes;
 };

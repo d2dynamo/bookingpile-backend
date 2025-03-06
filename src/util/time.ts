@@ -13,3 +13,11 @@ export const unixSec = (input: Date | number): number => {
 
   return input;
 };
+
+// returns last day of the given dates month.
+export const lastDay = (date: Date): number => {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + 1);
+  d.setDate(0);
+  return d.getDate();
+};

@@ -18,6 +18,10 @@ class TimeSlot {
     this.endEpoch = unixSec(new Date(startEpoch * 1000).setMinutes(59, 59, 0));
   }
 
+  valueOf(): number {
+    return this.startEpoch;
+  }
+
   getDayOfMonth(): DayOfMonth {
     const date = new Date(this.startEpoch * 1000);
     return date.getDate() as DayOfMonth;
