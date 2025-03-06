@@ -1,3 +1,4 @@
-import { listRoomsBasic, listAvailable } from './list';
+import { listRoomsBasic, listAvailableRoomTimes } from './list';
+import { getRoom } from './get';
 
-export { listRoomsBasic, listAvailable };
+export { listRoomsBasic, listAvailableRoomTimes, getRoom };

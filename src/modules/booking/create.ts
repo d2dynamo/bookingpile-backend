@@ -1,25 +1,31 @@
 import { eq, and, ne } from 'drizzle-orm';
 import db, { schema } from '../db';
-import { unixSec, UserError } from '../../util';
+import { UserError } from '../../util';
 import type { BookingStatus } from './types';
-import { checkTimeSlotAvailability } from './util';
+import { sortTimeSlotAvailability } from './util';
+import { TimeSlot } from '../timeSlot';
 
-export const createBooking = async (input: {
+interface InputBookable {
   roomId: number;
-  start: number; // unix seconds
-  //end: number; // unix seconds
-}) => {
-  const { roomId, start } = input;
+  /**
+   * Unix timestamp in seconds for the start of the timeslot
+   */
+  startSec: number;
+  reservationName?: string;
+}
+export const createBooking = async (input: InputBookable) => {
+  const timeSlot = new TimeSlot(input.roomId, input.startSec);
 
-  const normStart = unixSec(new Date(start * 1000).setMinutes(0, 0, 0));
-  const normEnd = unixSec(new Date(start * 1000).setMinutes(59, 59, 0));
+  if (input.reservationName) {
+    timeSlot.reservationName = input.reservationName;
+  }
 
   const timeReserved = await db
     .select({
       bookingId: schema.booking.id,
       roomId: schema.roomBookings.roomId,
       status: schema.booking.status,
-      createdAt: schema.booking.createdAt,
+      updatedAt: schema.booking.updatedAt,
     })
     .from(schema.roomBookings)
     .innerJoin(
@@ -28,14 +34,14 @@ export const createBooking = async (input: {
     )
     .where(
       and(
-        eq(schema.roomBookings.roomId, roomId),
-        eq(schema.booking.start, normStart),
-        eq(schema.booking.end, normEnd),
+        eq(schema.roomBookings.roomId, timeSlot.roomId),
+        eq(schema.booking.start, timeSlot.startSec),
+        eq(schema.booking.end, timeSlot.endSec),
         ne(schema.booking.status, 'cancelled')
       )
     );
 
-  const availability = await checkTimeSlotAvailability(timeReserved);
+  const availability = await sortTimeSlotAvailability(timeReserved);
 
   if (availability !== true) {
     throw new UserError('Time is reserved by an ongoing booking.', 401);
@@ -44,13 +50,16 @@ export const createBooking = async (input: {
   const status = 'reserved' as BookingStatus;
 
   return await db.transaction(async (trx) => {
+    const bInsert = {
+      status,
+      start: timeSlot.startSec,
+      end: timeSlot.endSec,
+      reservationName: timeSlot.reservationName,
+    };
+
     const booking = await trx
       .insert(schema.booking)
-      .values({
-        status,
-        start: normStart,
-        end: normEnd,
-      })
+      .values(bInsert)
       .returning({ insertedId: schema.booking.id });
 
     const bookingId = booking[0].insertedId;
@@ -60,8 +69,8 @@ export const createBooking = async (input: {
     }
 
     await trx.insert(schema.roomBookings).values({
-      bookingId: bookingId,
-      roomId: roomId,
+      roomId: timeSlot.roomId,
+      bookingId,
     });
 
     return bookingId;

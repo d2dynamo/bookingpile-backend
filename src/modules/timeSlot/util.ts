@@ -1,3 +1,4 @@
+import type { BookingStatus } from '../booking/types';
 import TimeSlot from './timeSlot';
 
 const bookingHourInRange = (epoch: number): boolean => {
@@ -7,7 +8,13 @@ const bookingHourInRange = (epoch: number): boolean => {
 };
 
 async function buildTimeSlots(
-  bookings: { bookingId: number; roomId: number; startEpoch: number }[]
+  bookings: {
+    roomId: number;
+    startEpoch: number;
+    bookingId?: number;
+    status?: BookingStatus;
+    reservationName?: string;
+  }[]
 ): Promise<Array<TimeSlot>> {
   const slots: TimeSlot[] = [];
 
@@ -27,7 +34,13 @@ async function buildTimeSlots(
       );
     }
 
-    const slot = new TimeSlot(booking.roomId, booking.startEpoch);
+    const slot = new TimeSlot(
+      booking.roomId,
+      booking.startEpoch,
+      booking.bookingId,
+      booking.status,
+      booking.reservationName
+    );
     slots.push(slot);
   }
 

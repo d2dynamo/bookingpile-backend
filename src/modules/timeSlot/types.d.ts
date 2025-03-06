@@ -32,3 +32,12 @@ export type DayOfMonth =
   | 29
   | 30
   | 31;
+
+export interface TimeSlotData {
+  roomId: number;
+  start: number;
+  end: number;
+  bookingId?: number;
+  status?: string;
+  reservationName?: string;
+}

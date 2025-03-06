@@ -7,5 +7,5 @@ export type RoomBookingTime = {
   bookingId: number;
   roomId: number;
   status: BookingStatus;
-  createdAt: number;
+  updatedAt: number;
 };

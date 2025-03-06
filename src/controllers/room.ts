@@ -1,42 +1,80 @@
-import { listAvailable, listRoomsBasic } from '../modules/room';
-import { unixSec } from '../util';
+import type { Request, Response } from 'express';
 
-export async function cListRooms(req: Request) {
+import { listAvailableRoomTimes, listRoomsBasic } from '../modules/room';
+import { unixSec, UserError } from '../util';
+
+export async function cListRooms(req: Request, res: Response, next: Function) {
   try {
     const rooms = await listRoomsBasic();
 
-    return new Response(JSON.stringify(rooms), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
+    res.locals = {
+      error: false,
+      message: 'success',
+      payload: {
+        rooms,
       },
-    });
-  } catch (e) {
-    throw e;
+    };
+    next();
+  } catch (err) {
+    if (err instanceof UserError) {
+      res.locals = {
+        error: true,
+        code: err.code || 400,
+        message: err.message || 'unknown client error',
+      };
+      next();
+      return;
+    }
+
+    res.locals = {
+      error: true,
+      code: 500,
+      message: 'internal server error',
+    };
+    next();
   }
 }
 
-export async function cListAvailableTimes(req: Request) {
+/**
+ * Parses the roomIds query parameter into an array of numbers
+ * @param qRoomIds Query parameter value (e.g., '1,2,3' or '1')
+ * @returns Array of room IDs as numbers, or empty array if invalid input
+ */
+const parseRoomIdsQuery = (qRoomIds: any): number[] => {
+  // Handle undefined or null case
+  if (!qRoomIds) {
+    return [];
+  }
+
+  if (Array.isArray(qRoomIds)) {
+    return qRoomIds.map((id) => parseInt(id, 10)).filter((id) => !isNaN(id));
+  }
+
+  const roomIdsStr = String(qRoomIds);
+
+  if (roomIdsStr.trim() === '') {
+    return [];
+  }
+
+  return roomIdsStr
+    .split(',')
+    .map((id) => parseInt(id.trim(), 10))
+    .filter((id) => !isNaN(id));
+};
+
+export async function cListAvailableTimes(
+  req: Request,
+  res: Response,
+  next: Function
+) {
   try {
-    const url = new URL(req.url);
-    const queryParams = url.searchParams;
+    const { qRoomIds, from, to } = req.query;
+    const roomIds = parseRoomIdsQuery(qRoomIds);
 
-    const from = queryParams.get('from')
-      ? Number(queryParams.get('from'))
-      : undefined;
-    const to = queryParams.get('to')
-      ? Number(queryParams.get('to'))
-      : undefined;
-    const qRoomIds = queryParams.get('roomIds')
-      ? queryParams.get('roomIds')?.split(',').map(Number) ?? []
-      : [];
-
-    const roomIds = [];
     if (!qRoomIds || !Array.isArray(qRoomIds) || !qRoomIds.length) {
       roomIds.push(...(await listRoomsBasic()).map((room) => room.id));
-    } else {
-      roomIds.push(...qRoomIds);
     }
+
     const now = new Date();
 
     let frameFrom = unixSec(new Date().setHours(7, 0, 0, 0));
@@ -45,28 +83,47 @@ export async function cListAvailableTimes(req: Request) {
     );
 
     if (from) {
-      if (isNaN(from)) {
-        return new Response('Invalid from date', { status: 400 });
+      if (isNaN(Number(from))) {
+        throw new UserError('Invalid from date', 400);
       }
-      frameFrom = unixSec(from);
+      frameFrom = unixSec(Number(from));
     }
 
     if (to) {
-      if (isNaN(to)) {
-        return new Response('Invalid to date', { status: 400 });
+      if (isNaN(Number(to))) {
+        throw new UserError('Invalid to date', 400);
       }
-      frameTo = unixSec(to);
+      frameTo = unixSec(Number(to));
     }
 
-    const availableTimes = await listAvailable({ roomIds, frameFrom, frameTo });
-
-    return new Response(JSON.stringify(availableTimes), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+    const availableTimes = await listAvailableRoomTimes({
+      roomIds,
+      frameFrom,
+      frameTo,
     });
-  } catch (e) {
-    throw e;
+
+    res.locals = {
+      error: false,
+      message: 'success',
+      payload: availableTimes,
+    };
+    next();
+  } catch (err) {
+    if (err instanceof UserError) {
+      res.locals = {
+        error: true,
+        status: err.code || 400,
+        message: err.message || 'unknown client error',
+      };
+      next();
+      return;
+    }
+
+    res.locals = {
+      error: true,
+      status: 500,
+      message: 'internal server error',
+    };
+    next();
   }
 }

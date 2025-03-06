@@ -1,59 +1,115 @@
-import { createBooking } from '../modules/booking';
-import type { BookingStatus } from '../modules/booking/types';
-import { updateBooking, getBooking } from '../modules/booking';
-import { unixSec } from '../util';
+import type { Request, Response } from 'express';
 
-export async function cCreateBooking(req: Request) {
+import { updateBooking, getBooking } from '../modules/booking';
+import { TimeSlot } from '../modules/timeSlot';
+import { createBooking } from '../modules/booking';
+import { isBookingStatus } from '../modules/booking';
+import { UserError } from '../util';
+
+export async function cCreateBooking(
+  req: Request,
+  res: Response,
+  next: Function
+) {
   try {
-    const { roomId, start } = await req.json();
+    const { roomId, start } = req.body;
 
     if (!roomId || isNaN(Number(roomId))) {
-      return new Response('Invalid room ID', { status: 400 });
+      res.locals = {
+        error: true,
+        code: 400,
+        message: 'Invalid room ID',
+      };
+      next();
+      return;
     }
 
     if (!start || isNaN(Number(start))) {
-      return new Response('Invalid from date', { status: 400 });
+      res.locals = {
+        error: true,
+        code: 400,
+        message: 'Invalid start date',
+      };
+      next();
+      return;
     }
 
     // if (!end || isNaN(Number(end))) {
     //   return new Response('Invalid to date', { status: 400 });
     // }
 
-    const bookingId = await createBooking({
-      roomId: Number(roomId),
-      start: unixSec(Number(start)),
-      //end,
-    });
+    const newTimeSlot = new TimeSlot(Number(roomId), Number(start));
 
-    return new Response(JSON.stringify({ bookingId }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
+    const bookingId = await createBooking(newTimeSlot);
+
+    if (!bookingId) {
+      throw new Error('Failed to create booking');
+    }
+
+    res.locals = {
+      error: false,
+      message: 'success',
+      payload: {
+        bookingId,
       },
-    });
-  } catch (e) {
-    throw e;
+    };
+    next();
+  } catch (err) {
+    if (err instanceof UserError) {
+      res.locals = {
+        error: true,
+        code: err.code || 400,
+        message: err.message || 'unknown client error',
+      };
+      next();
+      return;
+    }
+
+    res.locals = {
+      error: true,
+      code: 500,
+      message: 'internal server error',
+    };
+    next();
   }
 }
 
-const isBookingStatus = (status: string): status is BookingStatus => {
-  return ['reserved', 'cancelled', 'confirmed'].includes(status);
-};
-
-export async function cUpdateBooking(req: Request) {
+export async function cUpdateBooking(
+  req: Request,
+  res: Response,
+  next: Function
+) {
   try {
-    const { bookingId, status, reservationName } = await req.json();
+    const { bookingId, status, reservationName } = req.body;
 
     if (!bookingId || isNaN(Number(bookingId))) {
-      return new Response('Invalid booking ID', { status: 400 });
+      res.locals = {
+        error: true,
+        code: 400,
+        message: 'Invalid booking ID',
+      };
+      next();
+      return;
     }
 
     if (status && (typeof status !== 'string' || !isBookingStatus(status))) {
-      return new Response('Invalid status', { status: 400 });
+      res.locals = {
+        error: true,
+        code: 400,
+        message: 'Invalid booking status',
+      };
+      next();
+      return;
     }
 
     if (reservationName && typeof reservationName !== 'string') {
-      return new Response('Invalid reservation name', { status: 400 });
+      res.locals = {
+        error: true,
+        code: 400,
+        message: 'Invalid reservation name',
+      };
+      next();
+      return;
     }
 
     await updateBooking({
@@ -62,32 +118,73 @@ export async function cUpdateBooking(req: Request) {
       reservationName,
     });
 
-    return new Response('success', {
-      status: 200,
-    });
-  } catch (e) {
-    throw e;
+    res.locals = {
+      error: false,
+      message: 'success',
+    };
+    next();
+  } catch (err) {
+    if (err instanceof UserError) {
+      res.locals = {
+        error: true,
+        code: err.code || 400,
+        message: err.message || 'unknown client error',
+      };
+      next();
+      return;
+    }
+
+    res.locals = {
+      error: true,
+      code: 500,
+      message: 'internal server error',
+    };
+    next();
   }
 }
 
-export async function cGetBooking(req: Request) {
+export async function cGetBooking(req: Request, res: Response, next: Function) {
   try {
     const { id } = req.params;
     const bId = Number(id);
 
     if (!bId || isNaN(bId)) {
-      return new Response('Invalid booking ID', { status: 400 });
+      res.locals = {
+        error: true,
+        code: 400,
+        message: 'Invalid booking ID',
+      };
+      next();
+      return;
     }
 
-    const booking = await getBooking(bId);
+    console.log('bId', bId);
 
-    return new Response(JSON.stringify(booking), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  } catch (e) {
-    throw e;
+    const timeSlot = await getBooking(bId);
+
+    res.locals = {
+      error: false,
+      message: 'success',
+      payload: timeSlot.toObject(),
+    };
+    next();
+  } catch (err) {
+    if (err instanceof UserError) {
+      res.locals = {
+        error: true,
+        code: err.code || 400,
+        message: err.message || 'unknown client error',
+      };
+      next();
+      return;
+    }
+
+    console.error(err);
+    res.locals = {
+      error: true,
+      code: 500,
+      message: 'internal server error',
+    };
+    next();
   }
 }
