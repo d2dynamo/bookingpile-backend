@@ -10,9 +10,7 @@ export async function cListRooms(req: Request, res: Response, next: Function) {
     res.locals = {
       error: false,
       message: 'success',
-      payload: {
-        rooms,
-      },
+      payload: rooms,
     };
     next();
   } catch (err) {
@@ -68,10 +66,11 @@ export async function cListAvailableTimes(
   next: Function
 ) {
   try {
-    const { qRoomIds, from, to } = req.query;
+    const { roomIds: qRoomIds, from, to } = req.query;
+
     const roomIds = parseRoomIdsQuery(qRoomIds);
 
-    if (!qRoomIds || !Array.isArray(qRoomIds) || !qRoomIds.length) {
+    if (!roomIds.length) {
       roomIds.push(...(await listRoomsBasic()).map((room) => room.id));
     }
 

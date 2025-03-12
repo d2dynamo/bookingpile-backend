@@ -23,8 +23,6 @@ export const getBooking = async (bookingId: number): Promise<TimeSlot> => {
     )
     .where(eq(schema.booking.id, bookingId));
 
-  console.log(result);
-
   if (!result || !result.length) {
     throw new UserError('Booking not found', 404);
   }

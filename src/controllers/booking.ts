@@ -34,10 +34,6 @@ export async function cCreateBooking(
       return;
     }
 
-    // if (!end || isNaN(Number(end))) {
-    //   return new Response('Invalid to date', { status: 400 });
-    // }
-
     const newTimeSlot = new TimeSlot(Number(roomId), Number(start));
 
     const bookingId = await createBooking(newTimeSlot);
@@ -157,8 +153,6 @@ export async function cGetBooking(req: Request, res: Response, next: Function) {
       next();
       return;
     }
-
-    console.log('bId', bId);
 
     const timeSlot = await getBooking(bId);
 
